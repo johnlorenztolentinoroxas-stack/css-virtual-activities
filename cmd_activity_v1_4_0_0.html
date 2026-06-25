@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CMD Interactive Activity</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #1a1a2e;
+    color: #e0e0e0;
+  }
+
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── Top Nav ── */
+  .topnav {
+    background: #16213e;
+    border-bottom: 2px solid #0f3460;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    height: 50px;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .tab-btn {
+    padding: 7px 20px;
+    border: none;
+    border-radius: 6px 6px 0 0;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: background 0.2s, color 0.2s;
+    background: transparent;
+    color: #7a8ba6;
+  }
+  .tab-btn.active { background: #0f3460; color: #e2b96f; }
+  .tab-btn:hover:not(.active) { background: #1a2f50; color: #aec6e8; }
+  .nav-title {
+    margin-left: auto;
+    font-size: 12px;
+    color: #4a6080;
+    font-weight: 500;
+  }
+
+  /* ── Panels ── */
+  .panel { display: none; flex: 1; overflow: hidden; min-height: 0; }
+  .panel.active { display: flex; }
+
+  /* ══════════════════════════════
+     SIMULATOR PANEL
+  ══════════════════════════════ */
+  .sim-layout {
+    flex: 1;
+    display: flex;
+    gap: 12px;
+    padding: 14px;
+    overflow: hidden;
+    min-height: 0;
+  }
+  .sim-sidebar {
+    width: 210px;
+    flex-shrink: 0;
+    background: #16213e;
+    border: 1px solid #0f3460;
+    border-radius: 8px;
+    overflow-y: auto;
+    padding: 12px;
+  }
+  .sim-sidebar::-webkit-scrollbar { width: 4px; }
+  .sim-sidebar::-webkit-scrollbar-thumb { background: #2a4060; border-radius: 2px; }
+  .sidebar-title {
+    font-size: 10px;
+    font-weight: 700;
+    color: #4a6080;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+  }
+  .cmd-ref {
+    display: flex;
+    gap: 6px;
+    align-items: flex-start;
+    margin-bottom: 7px;
+    cursor: pointer;
+  }
+  .cmd-ref:hover .cmd-ref-name { color: #e2b96f; }
+  .cmd-ref-name {
+    font-family: 'Consolas', monospace;
+    font-size: 12px;
+    color: #82aaff;
+    min-width: 68px;
+    flex-shrink: 0;
+    transition: color 0.15s;
+  }
+  .cmd-ref-desc { font-size: 11px; color: #4a6080; line-height: 1.4; }
+  .sim-terminal-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  /* ══════════════════════════════
+     SHARED TERMINAL
+  ══════════════════════════════ */
+  .terminal-window {
+    background: #0c0c0c;
+    border: 1px solid #333;
+    border-radius: 8px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+  }
+  .terminal-titlebar {
+    background: #2d2d2d;
+    padding: 7px 12px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    border-bottom: 1px solid #444;
+    flex-shrink: 0;
+  }
+  .dot { width: 11px; height: 11px; border-radius: 50%; }
+  .dot-red    { background: #ff5f57; }
+  .dot-yellow { background: #ffbd2e; }
+  .dot-green  { background: #28ca42; }
+  .terminal-title-text {
+    font-size: 11px;
+    color: #888;
+    margin-left: 6px;
+    font-family: 'Consolas', monospace;
+  }
+  .terminal-output {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 14px 4px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .terminal-output::-webkit-scrollbar { width: 5px; }
+  .terminal-output::-webkit-scrollbar-track { background: #111; }
+  .terminal-output::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+  .terminal-input-row {
+    display: flex;
+    align-items: center;
+    padding: 7px 14px 10px;
+    gap: 5px;
+    flex-shrink: 0;
+    border-top: 1px solid #1a1a1a;
+  }
+  .prompt-label {
+    font-family: 'Consolas', monospace;
+    font-size: 13px;
+    color: #cccccc;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .cmd-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #ffffff;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 13px;
+    caret-color: #ffffff;
+  }
+  .cmd-input:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .t-white  { color: #ffffff; }
+  .t-green  { color: #4dff91; }
+  .t-red    { color: #ff6b6b; }
+  .t-yellow { color: #ffd700; }
+  .t-cyan   { color: #4dd9ff; }
+  .t-white  { color: #ffffff; }
+  .t-dim    { color: #555555; }
+
+  /* ══════════════════════════════
+     CHALLENGE PANEL
+  ══════════════════════════════ */
+  .challenge-layout {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 14px;
+    gap: 10px;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /* Challenge header */
+  .challenge-card {
+    background: #16213e;
+    border: 1px solid #0f3460;
+    border-radius: 8px;
+    padding: 14px 16px;
+    flex-shrink: 0;
+  }
+  .challenge-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .ch-badge {
+    font-size: 10px;
+    font-weight: 700;
+    color: #4a6080;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* Timer */
+  .ch-timer {
+    font-size: 15px;
+    font-weight: 700;
+    font-family: 'Consolas', monospace;
+    color: #e2b96f;
+    letter-spacing: 1px;
+  }
+  .ch-timer.urgent { color: #ff6b6b; }
+
+  .progress-bg {
+    height: 5px;
+    background: #0a1a30;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+  .progress-fill {
+    height: 5px;
+    background: linear-gradient(90deg, #0f3460, #e2b96f);
+    border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+  .ch-task-text {
+    font-size: 15px;
+    color: #d4e4ff;
+    font-weight: 500;
+    line-height: 1.5;
+    margin-bottom: 8px;
+  }
+  .ch-task-text code {
+    color: #e2b96f;
+    font-family: 'Consolas', monospace;
+    background: rgba(226,185,111,0.1);
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 14px;
+  }
+  .hint-row { display: flex; align-items: center; gap: 10px; }
+  .hint-btn {
+    padding: 4px 12px;
+    background: transparent;
+    border: 1px solid #2a4060;
+    border-radius: 5px;
+    color: #7a9ab8;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .hint-btn:hover { background: #0f2040; color: #aec6e8; border-color: #4a6080; }
+  .hint-text {
+    font-size: 12px;
+    color: #7a9ab8;
+    font-style: italic;
+    display: none;
+  }
+  .hint-text.visible { display: inline; }
+
+  /* Feedback + Next row */
+  .feedback-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    min-height: 34px;
+  }
+  .feedback-strip {
+    flex: 1;
+    height: 34px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    font-family: 'Consolas', monospace;
+    font-size: 13px;
+    background: transparent;
+    color: transparent;
+    transition: background 0.2s, color 0.2s;
+  }
+  .feedback-strip.correct { background: #0a3020; color: #4dff91; }
+  .feedback-strip.wrong   { background: #2a0a0a; color: #ff6b6b; }
+
+  .next-btn {
+    display: none;
+    padding: 0 18px;
+    height: 34px;
+    background: #0f3460;
+    border: 1px solid #e2b96f;
+    border-radius: 6px;
+    color: #e2b96f;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 6px;
+  }
+  .next-btn:hover { background: #1a4a80; }
+  .next-btn.visible { display: flex; }
+
+  /* ── Overlay screens ── */
+  .overlay-screen {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 14px;
+    padding: 30px 20px;
+  }
+  .overlay-screen.visible { display: flex; }
+  .ov-emoji  { font-size: 56px; }
+  .ov-title  { font-size: 22px; font-weight: 700; color: #e2b96f; }
+  .ov-sub    { font-size: 14px; color: #7a9ab8; max-width: 420px; line-height: 1.8; }
+  .ov-time   {
+    font-size: 52px;
+    font-weight: 800;
+    color: #ffffff;
+    font-family: 'Consolas', monospace;
+    letter-spacing: 2px;
+  }
+  .ov-time-label {
+    font-size: 13px;
+    color: #4a6080;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: -8px;
+  }
+  .ov-remark { font-size: 17px; color: #4dff91; font-weight: 600; }
+  .action-btn {
+    margin-top: 4px;
+    padding: 10px 28px;
+    background: #0f3460;
+    border: 1px solid #e2b96f;
+    border-radius: 6px;
+    color: #e2b96f;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .action-btn:hover { background: #1a4a80; }
+</style>
+</head>
+<body>
+<div class="app">
+
+<div class="topnav">
+  <button class="tab-btn active" onclick="switchTab('sim')">💻 CMD Simulator</button>
+  <button class="tab-btn" onclick="switchTab('challenge')">🎯 Challenge Mode</button>
+  <span class="nav-title">CSS Activity 4 — Basic CMD Prompts</span>
+</div>
+
+<!-- SIMULATOR -->
+<div class="panel active" id="panel-sim">
+  <div class="sim-layout">
+    <div class="sim-sidebar">
+      <div class="sidebar-title">Quick Reference</div>
+      <div id="cmd-list"></div>
+    </div>
+    <div class="sim-terminal-col">
+      <div class="terminal-window">
+        <div class="terminal-titlebar">
+          <div class="dot dot-red"></div>
+          <div class="dot dot-yellow"></div>
+          <div class="dot dot-green"></div>
+          <span class="terminal-title-text" id="sim-title-text">C:\Users\Student</span>
+        </div>
+        <div class="terminal-output" id="sim-output"></div>
+        <div class="terminal-input-row">
+          <span class="prompt-label" id="sim-prompt">C:\Users\Student&gt;</span>
+          <input class="cmd-input" id="sim-input" type="text" autocomplete="off" spellcheck="false" placeholder="Type a command and press Enter…">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CHALLENGE -->
+<div class="panel" id="panel-challenge">
+
+  <!-- Intro -->
+  <div class="overlay-screen visible" id="ch-intro">
+    <div class="ov-emoji">🎯</div>
+    <div class="ov-title">CMD Challenge Mode</div>
+    <div class="ov-sub">
+      Complete all <strong>15 challenges</strong> using the correct CMD commands.<br>
+      You must answer each one correctly before moving on.<br><br>
+      A timer starts the moment you begin — how fast can you finish?<br>
+      Use the <strong>Hint</strong> button if you get stuck.
+    </div>
+    <button class="action-btn" onclick="startChallenge()">▶ Start Timer &amp; Begin</button>
+  </div>
+
+  <!-- Active -->
+  <div class="challenge-layout" id="ch-active" style="display:none;">
+    <div class="challenge-card">
+      <div class="challenge-meta">
+        <span class="ch-badge" id="ch-label">Challenge 1 of 15</span>
+        <span class="ch-timer" id="ch-timer">00:00</span>
+      </div>
+      <div class="progress-bg">
+        <div class="progress-fill" id="ch-progress" style="width:0%"></div>
+      </div>
+      <div class="ch-task-text" id="ch-task">Loading…</div>
+      <div class="hint-row">
+        <button class="hint-btn" onclick="showHint()">💡 Hint</button>
+        <span class="hint-text" id="hint-text"></span>
+      </div>
+    </div>
+
+    <div class="feedback-row">
+      <div class="feedback-strip" id="ch-feedback"></div>
+      <button class="next-btn" id="next-btn" onclick="advanceChallenge()">Next Challenge →</button>
+    </div>
+
+    <div class="terminal-window">
+      <div class="terminal-titlebar">
+        <div class="dot dot-red"></div>
+        <div class="dot dot-yellow"></div>
+        <div class="dot dot-green"></div>
+        <span class="terminal-title-text" id="ch-title-text">C:\Users\Student</span>
+      </div>
+      <div class="terminal-output" id="ch-output"></div>
+      <div class="terminal-input-row">
+        <span class="prompt-label" id="ch-prompt">C:\Users\Student&gt;</span>
+        <input class="cmd-input" id="ch-input" type="text" autocomplete="off" spellcheck="false" placeholder="Type your command here…">
+      </div>
+    </div>
+  </div>
+
+  <!-- Result -->
+  <div class="overlay-screen" id="ch-result">
+    <div class="ov-emoji">🏆</div>
+    <div class="ov-title">All 15 Challenges Complete!</div>
+    <div class="ov-time" id="res-time">00:00</div>
+    <div class="ov-time-label">your finishing time</div>
+    <div class="ov-remark" id="res-remark"></div>
+    <div class="ov-sub" id="res-sub"></div>
+    <button class="action-btn" onclick="restartChallenge()">↺ Try Again</button>
+  </div>
+
+</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  FAKE FILE SYSTEM
+// ═══════════════════════════════════════════
+const BASE_FS = {
+  'C:\\Users\\Student': {
+    type: 'dir',
+    children: {
+      'Documents': {
+        type: 'dir',
+        children: {
+          'report.txt': { type: 'file', content: 'This is a sample report document.\nCreated for CSS Activity.\nColegio De Montalban — ITE' }
+        }
+      },
+      'Downloads': { type: 'dir', children: {} },
+      'Desktop': {
+        type: 'dir',
+        children: {
+          'notes.txt': { type: 'file', content: 'Study notes:\n- Motherboard components\n- CMD commands\n- Bootable USB steps' }
+        }
+      },
+      'Pictures': { type: 'dir', children: {} }
+    }
+  }
+};
+
+function cloneFS() { return JSON.parse(JSON.stringify(BASE_FS)); }
+
+function getNode(path, fs) {
+  if (path === 'C:\\Users\\Student') return fs['C:\\Users\\Student'];
+  const parts = path.replace('C:\\Users\\Student\\', '').split('\\');
+  let node = fs['C:\\Users\\Student'];
+  for (const p of parts) {
+    if (!node || !node.children || !node.children[p]) return null;
+    node = node.children[p];
+  }
+  return node;
+}
+
+// ═══════════════════════════════════════════
+//  SIDEBAR
+// ═══════════════════════════════════════════
+const CMD_REF = [
+  { cmd: 'dir',      desc: 'List files/folders in current directory' },
+  { cmd: 'cd',       desc: 'Change directory. cd .. goes up one level' },
+  { cmd: 'md',       desc: 'Create a new folder' },
+  { cmd: 'rd',       desc: 'Remove/delete a folder' },
+  { cmd: 'copy',     desc: 'Copy a file to another location' },
+  { cmd: 'del',      desc: 'Delete a file' },
+  { cmd: 'ren',      desc: 'Rename a file or folder' },
+  { cmd: 'type',     desc: 'Display contents of a text file' },
+  { cmd: 'edit',     desc: 'Opens a simple text editor' },
+  { cmd: 'format',   desc: 'Format a disk or diskette' },
+  { cmd: 'chkdsk',   desc: 'Check a disk for errors' },
+  { cmd: 'tree',     desc: 'Show directory structure visually' },
+  { cmd: 'attrib',   desc: 'View or change file attributes' },
+  { cmd: 'ping',     desc: 'Test network connectivity to a host' },
+  { cmd: 'ipconfig', desc: 'Show IP configuration information' },
+  { cmd: 'net',      desc: 'Manage network resources' },
+  { cmd: 'mode',     desc: 'Configure system devices' },
+  { cmd: 'date',     desc: 'Display or set the system date' },
+  { cmd: 'time',     desc: 'Display or set the system time' },
+  { cmd: 'set',      desc: 'View, set, or remove environment variables' },
+  { cmd: 'tasklist', desc: 'Show all currently running tasks' },
+  { cmd: 'taskkill', desc: 'Terminate one or more running tasks' },
+  { cmd: 'fc',       desc: 'Compare two files or sets of files' },
+  { cmd: 'help',     desc: 'Display help information for commands' },
+  { cmd: 'exit',     desc: 'Exit the Command Prompt' },
+];
+
+const cmdListEl = document.getElementById('cmd-list');
+CMD_REF.forEach(r => {
+  const div = document.createElement('div');
+  div.className = 'cmd-ref';
+  div.innerHTML = `<span class="cmd-ref-name">${r.cmd}</span><span class="cmd-ref-desc">${r.desc}</span>`;
+  div.addEventListener('click', () => { const i=document.getElementById('sim-input'); i.value=r.cmd+' '; i.focus(); });
+  cmdListEl.appendChild(div);
+});
+
+const FAKE_TASKS = [
+  { name:'System',       pid:4,    mem:'1,240 K' },
+  { name:'svchost.exe',  pid:892,  mem:'8,512 K' },
+  { name:'explorer.exe', pid:2344, mem:'42,128 K' },
+  { name:'chrome.exe',   pid:3120, mem:'158,904 K' },
+  { name:'notepad.exe',  pid:4056, mem:'3,896 K' },
+  { name:'tasklist.exe', pid:5812, mem:'4,256 K' },
+];
+
+// ═══════════════════════════════════════════
+//  COMMAND PROCESSOR
+// ═══════════════════════════════════════════
+function processCommand(rawInput, currentPath, fs) {
+  const input = rawInput.trim();
+  if (!input) return { lines:[], newPath:currentPath };
+  const parts = input.match(/(?:[^\s"]+|"[^"]*")+/g)||[];
+  const cmd  = parts[0].toLowerCase();
+  const args = parts.slice(1).map(a=>a.replace(/^"|"$/g,''));
+  const node = getNode(currentPath, fs);
+  const lines = [];
+  let newPath = currentPath;
+  const now = new Date();
+
+  switch(cmd) {
+    case 'dir': {
+      const ds=now.toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric'});
+      const ts=now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+      lines.push({t:` Volume in drive C has no label.`,c:'t-white'});
+      lines.push({t:` Volume Serial Number is A4B2-9F3C`,c:'t-white'});
+      lines.push({t:'',c:''});
+      lines.push({t:` Directory of ${currentPath}`,c:'t-white'});
+      lines.push({t:'',c:''});
+      if(node&&node.children){
+        lines.push({t:`${ds}  ${ts}    <DIR>          .`,c:'t-white'});
+        lines.push({t:`${ds}  ${ts}    <DIR>          ..`,c:'t-white'});
+        let fc=0,dc=0,tb=0;
+        Object.entries(node.children).forEach(([name,child])=>{
+          if(child.type==='dir'){lines.push({t:`${ds}  ${ts}    <DIR>          ${name}`,c:'t-cyan'});dc++;}
+          else{const b=(child.content||'').length;tb+=b;lines.push({t:`${ds}  ${ts}            ${String(b).padStart(6)}   ${name}`,c:'t-white'});fc++;}
+        });
+        lines.push({t:'',c:''});
+        lines.push({t:`               ${fc} File(s)          ${tb} bytes`,c:'t-white'});
+        lines.push({t:`               ${dc+2} Dir(s)   58,392,543,232 bytes free`,c:'t-white'});
+      }
+      break;
+    }
+    case 'cd': {
+      if(!args[0]){lines.push({t:currentPath,c:'t-white'});break;}
+      if(args[0]==='..'){
+        const p=currentPath.split('\\');
+        newPath=p.length>3?p.slice(0,-1).join('\\'):'C:\\Users\\Student';
+        break;
+      }
+      const tp=currentPath==='C:\\Users\\Student'?`C:\\Users\\Student\\${args[0]}`:`${currentPath}\\${args[0]}`;
+      const tn=getNode(tp,fs);
+      if(tn&&tn.type==='dir'){newPath=tp;}
+      else{lines.push({t:'The system cannot find the path specified.',c:'t-red'});}
+      break;
+    }
+    case 'md': case 'mkdir':
+      if(!args[0]){lines.push({t:'The syntax of the command is incorrect.',c:'t-red'});break;}
+      if(node&&node.children){
+        if(node.children[args[0]]){lines.push({t:`A subdirectory or file ${args[0]} already exists.`,c:'t-red'});}
+        else{node.children[args[0]]={type:'dir',children:{}};lines.push({t:`Directory "${args[0]}" created successfully.`,c:'t-green'});}
+      }
+      break;
+    case 'rd': case 'rmdir':
+      if(!args[0]){lines.push({t:'The syntax of the command is incorrect.',c:'t-red'});break;}
+      if(node&&node.children&&node.children[args[0]]){
+        const tgt=node.children[args[0]];
+        if(tgt.type!=='dir'){lines.push({t:`${args[0]} - Access is denied.`,c:'t-red'});}
+        else if(Object.keys(tgt.children).length>0){lines.push({t:'The directory is not empty.',c:'t-yellow'});lines.push({t:`Tip: use rd /s ${args[0]} to force remove.`,c:'t-dim'});}
+        else{delete node.children[args[0]];lines.push({t:`Directory "${args[0]}" removed.`,c:'t-green'});}
+      }else{lines.push({t:'The system cannot find the file specified.',c:'t-red'});}
+      break;
+    case 'del': case 'erase':
+      if(!args[0]){lines.push({t:'The syntax of the command is incorrect.',c:'t-red'});break;}
+      if(node&&node.children&&node.children[args[0]]){
+        if(node.children[args[0]].type==='dir'){lines.push({t:'Access is denied.',c:'t-red'});}
+        else{delete node.children[args[0]];lines.push({t:`File "${args[0]}" deleted.`,c:'t-green'});}
+      }else{lines.push({t:`Could Not Find ${currentPath}\\${args[0]}`,c:'t-red'});}
+      break;
+    case 'ren': case 'rename':
+      if(args.length<2){lines.push({t:'The syntax of the command is incorrect.',c:'t-red'});break;}
+      if(node&&node.children&&node.children[args[0]]){
+        node.children[args[1]]=node.children[args[0]];delete node.children[args[0]];
+        lines.push({t:`"${args[0]}" renamed to "${args[1]}".`,c:'t-green'});
+      }else{lines.push({t:'The system cannot find the file specified.',c:'t-red'});}
+      break;
+    case 'copy':
+      if(args.length<2){lines.push({t:'The syntax of the command is incorrect.',c:'t-red'});break;}
+      if(node&&node.children&&node.children[args[0]]&&node.children[args[0]].type==='file'){
+        node.children[args[1]]=JSON.parse(JSON.stringify(node.children[args[0]]));
+        lines.push({t:'        1 file(s) copied.',c:'t-white'});
+      }else{lines.push({t:'The system cannot find the file specified.',c:'t-red'});}
+      break;
+    case 'type':
+      if(!args[0]){lines.push({t:'The syntax of the command is incorrect.',c:'t-red'});break;}
+      if(node&&node.children&&node.children[args[0]]&&node.children[args[0]].type==='file'){
+        node.children[args[0]].content.split('\n').forEach(l=>lines.push({t:l,c:'t-white'}));
+      }else{lines.push({t:'The system cannot find the file specified.',c:'t-red'});}
+      break;
+    case 'tree': {
+      lines.push({t:'Folder PATH listing for volume C',c:'t-white'});
+      lines.push({t:'C:\\USERS\\STUDENT',c:'t-yellow'});
+      function pt(n,pfx){
+        if(!n||!n.children)return;
+        const keys=Object.keys(n.children);
+        keys.forEach((k,i)=>{
+          const last=i===keys.length-1;
+          lines.push({t:`${pfx}${last?'└───':'├───'}${k}`,c:n.children[k].type==='dir'?'t-cyan':'t-white'});
+          if(n.children[k].type==='dir')pt(n.children[k],pfx+(last?'    ':'│   '));
+        });
+      }
+      pt(getNode('C:\\Users\\Student',fs),'');
+      break;
+    }
+    case 'ipconfig':
+      lines.push({t:'Windows IP Configuration',c:'t-white'});lines.push({t:'',c:''});
+      lines.push({t:'Ethernet adapter Ethernet:',c:'t-white'});lines.push({t:'',c:''});
+      lines.push({t:'   Connection-specific DNS Suffix  . :',c:'t-white'});
+      lines.push({t:'   IPv4 Address. . . . . . . . . . . : 192.168.1.105',c:'t-green'});
+      lines.push({t:'   Subnet Mask . . . . . . . . . . . : 255.255.255.0',c:'t-white'});
+      lines.push({t:'   Default Gateway . . . . . . . . . : 192.168.1.1',c:'t-white'});
+      lines.push({t:'   IPv6 Address. . . . . . . . . . . : fe80::a1b2:c3d4:e5f6:7890%12',c:'t-white'});
+      break;
+    case 'ping': {
+      const host=args[0]||'google.com';
+      lines.push({t:`Pinging ${host} [142.250.68.46] with 32 bytes of data:`,c:'t-white'});
+      for(let i=0;i<4;i++){const ms=Math.floor(Math.random()*15)+8;lines.push({t:`Reply from 142.250.68.46: bytes=32 time=${ms}ms TTL=55`,c:'t-green'});}
+      lines.push({t:'',c:''});
+      lines.push({t:'Ping statistics for 142.250.68.46:',c:'t-white'});
+      lines.push({t:'    Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),',c:'t-white'});
+      lines.push({t:'    Minimum = 8ms, Maximum = 22ms, Average = 13ms',c:'t-white'});
+      break;
+    }
+    case 'tasklist':
+      lines.push({t:'Image Name                     PID Session Name        Mem Usage',c:'t-cyan'});
+      lines.push({t:'========================= ======== ================ ===========',c:'t-dim'});
+      FAKE_TASKS.forEach(t=>lines.push({t:`${t.name.padEnd(25)}${String(t.pid).padStart(8)} ${'Console'.padEnd(17)}${t.mem}`,c:'t-white'}));
+      break;
+    case 'taskkill': {
+      const pi=args.indexOf('/pid'),ii=args.indexOf('/im');
+      if(pi!==-1&&args[pi+1]){
+        const pid=parseInt(args[pi+1]);const tk=FAKE_TASKS.find(t=>t.pid===pid);
+        lines.push(tk?{t:`SUCCESS: The process "${tk.name}" with PID ${pid} has been terminated.`,c:'t-green'}:{t:`ERROR: The process "${pid}" not found.`,c:'t-red'});
+      }else if(ii!==-1&&args[ii+1]){
+        const nm=args[ii+1];const tk=FAKE_TASKS.find(t=>t.name.toLowerCase()===nm.toLowerCase());
+        lines.push(tk?{t:`SUCCESS: Sent termination signal to "${nm}" with PID ${tk.pid}.`,c:'t-green'}:{t:`ERROR: The process "${nm}" not found.`,c:'t-red'});
+      }else{lines.push({t:`ERROR: Invalid argument - '${args.join(' ')}'.`,c:'t-red'});lines.push({t:'Usage: taskkill /pid <PID>  or  taskkill /im <imagename>',c:'t-dim'});}
+      break;
+    }
+    case 'chkdsk':
+      lines.push({t:'The type of the file system is NTFS.',c:'t-white'});
+      lines.push({t:'Stage 1: Examining basic file system structure ...',c:'t-yellow'});
+      lines.push({t:'  262144 file records processed.',c:'t-white'});
+      lines.push({t:'Stage 2: Examining file name linkage ...',c:'t-yellow'});
+      lines.push({t:'  262172 index entries processed.',c:'t-white'});
+      lines.push({t:'Stage 3: Examining security descriptors ...',c:'t-yellow'});
+      lines.push({t:'  Security descriptor verification completed.',c:'t-white'});
+      lines.push({t:'',c:''});
+      lines.push({t:'Windows has scanned the file system and found no problems.',c:'t-green'});
+      lines.push({t:'  120,033,280 KB total disk space.',c:'t-white'});
+      lines.push({t:'   57,019,392 KB in use.',c:'t-white'});
+      lines.push({t:'   63,013,888 KB available on disk.',c:'t-white'});
+      break;
+    case 'date':
+      lines.push({t:`The current date is: ${now.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}`,c:'t-white'});
+      lines.push({t:'Enter the new date: (press Enter to skip)',c:'t-dim'});
+      break;
+    case 'time':
+      lines.push({t:`The current time is: ${now.toLocaleTimeString('en-US')}`,c:'t-white'});
+      lines.push({t:'Enter the new time: (press Enter to skip)',c:'t-dim'});
+      break;
+    case 'set':
+      ['ALLUSERSPROFILE=C:\\ProgramData','COMPUTERNAME=STUDENT-PC','OS=Windows_NT',
+       'PATH=C:\\Windows\\system32;C:\\Windows;C:\\Program Files','PROCESSOR_ARCHITECTURE=AMD64',
+       'SystemRoot=C:\\Windows','USERNAME=Student','USERPROFILE=C:\\Users\\Student'
+      ].forEach(l=>lines.push({t:l,c:'t-white'}));
+      break;
+    case 'attrib':
+      if(args[0]&&node&&node.children&&node.children[args[0]]){
+        lines.push({t:`   A                   ${currentPath}\\${args[0]}`,c:'t-white'});
+      }else if(!args[0]&&node&&node.children){
+        Object.keys(node.children).forEach(k=>lines.push({t:`   A                   ${currentPath}\\${k}`,c:'t-white'}));
+      }else{lines.push({t:`File not found - ${args[0]||''}`,c:'t-red'});}
+      break;
+    case 'fc':
+      if(args.length<2){lines.push({t:'Incorrect number of parameters',c:'t-red'});break;}
+      lines.push({t:`Comparing files ${args[0]} and ${args[1]}`,c:'t-white'});
+      lines.push({t:'FC: no differences encountered',c:'t-green'});
+      break;
+    case 'net':
+      lines.push({t:'The syntax of this command is:',c:'t-white'});
+      lines.push({t:'NET [ ACCOUNTS | COMPUTER | CONFIG | CONTINUE | FILE |',c:'t-white'});
+      lines.push({t:'      GROUP | HELP | LOCALGROUP | PAUSE | SESSION | START ]',c:'t-white'});
+      break;
+    case 'mode':
+      lines.push({t:'Status for device CON:',c:'t-white'});
+      lines.push({t:'    Lines:     9001',c:'t-white'});
+      lines.push({t:'    Columns:   80',c:'t-white'});
+      lines.push({t:'    Code page: 437',c:'t-white'});
+      break;
+    case 'format':
+      lines.push({t:'WARNING: Formatting will erase ALL data on this drive.',c:'t-yellow'});
+      lines.push({t:'This is a simulation — no actual formatting performed.',c:'t-dim'});
+      lines.push({t:'Format complete. Volume label: STUDENT',c:'t-green'});
+      break;
+    case 'edit':
+      lines.push({t:'MS-DOS Editor — simulation mode.',c:'t-white'});
+      lines.push({t:'(In a real terminal this would open a full-screen text editor.)',c:'t-dim'});
+      break;
+    case 'help':
+      lines.push({t:'Available commands in this simulation:',c:'t-yellow'});
+      lines.push({t:'',c:''});
+      CMD_REF.forEach(r=>lines.push({t:`  ${r.cmd.toUpperCase().padEnd(12)}${r.desc}`,c:'t-white'}));
+      break;
+    case 'cls': case 'clear':
+      return { lines:[], newPath, clear:true };
+    case 'exit':
+      lines.push({t:'Session ended. Refresh to start a new session.',c:'t-dim'});
+      break;
+    default:
+      lines.push({t:`'${parts[0]}' is not recognized as an internal or external command,`,c:'t-red'});
+      lines.push({t:'operable program or batch file.',c:'t-red'});
+      lines.push({t:"Type 'help' to see available commands.",c:'t-dim'});
+  }
+  return { lines, newPath };
+}
+
+// ═══════════════════════════════════════════
+//  SIMULATOR
+// ═══════════════════════════════════════════
+let simPath='C:\\Users\\Student', simFS=cloneFS(), simHist=[], simHistIdx=-1;
+const simOut=document.getElementById('sim-output');
+const simInp=document.getElementById('sim-input');
+const simPrompt=document.getElementById('sim-prompt');
+const simTitle=document.getElementById('sim-title-text');
+
+function simPrint(lines){
+  lines.forEach(l=>{const d=document.createElement('div');d.className=l.c||'';d.textContent=l.t;simOut.appendChild(d);});
+  simOut.scrollTop=simOut.scrollHeight;
+}
+simPrint([
+  {t:'Microsoft Windows [Version 10.0.19045.3570]',c:'t-white'},
+  {t:'(c) Microsoft Corporation. All rights reserved.',c:'t-white'},
+  {t:'',c:''},
+  {t:'Welcome to the CMD Simulator! Type "help" for all commands.',c:'t-green'},
+  {t:'Click any command in the left panel to paste it into the input.',c:'t-dim'},
+  {t:'',c:''},
+]);
+simInp.addEventListener('keydown',e=>{
+  if(e.key==='ArrowUp'){e.preventDefault();if(simHistIdx<simHist.length-1){simHistIdx++;simInp.value=simHist[simHist.length-1-simHistIdx];}}
+  else if(e.key==='ArrowDown'){e.preventDefault();if(simHistIdx>0){simHistIdx--;simInp.value=simHist[simHist.length-1-simHistIdx];}else{simHistIdx=-1;simInp.value='';}}
+  else if(e.key==='Enter'){
+    const val=simInp.value;if(!val.trim())return;
+    simHist.push(val);simHistIdx=-1;
+    const echo=document.createElement('div');echo.className='t-white';echo.textContent=simPath+'>'+val;simOut.appendChild(echo);
+    const res=processCommand(val,simPath,simFS);
+    if(res.clear)simOut.innerHTML='';else simPrint(res.lines);
+    simPath=res.newPath;simPrompt.textContent=simPath+'>';simTitle.textContent=simPath;
+    simInp.value='';simOut.scrollTop=simOut.scrollHeight;
+  }
+});
+
+// ═══════════════════════════════════════════
+//  TIMER
+// ═══════════════════════════════════════════
+let timerInterval = null;
+let elapsedSeconds = 0;
+
+function formatTime(secs) {
+  const m = String(Math.floor(secs / 60)).padStart(2,'0');
+  const s = String(secs % 60).padStart(2,'0');
+  return `${m}:${s}`;
+}
+
+function startTimer() {
+  elapsedSeconds = 0;
+  const el = document.getElementById('ch-timer');
+  el.textContent = '00:00';
+  el.classList.remove('urgent');
+  timerInterval = setInterval(() => {
+    elapsedSeconds++;
+    el.textContent = formatTime(elapsedSeconds);
+  }, 1000);
+}
+
+function stopTimer() {
+  clearInterval(timerInterval);
+  timerInterval = null;
+}
+
+// ═══════════════════════════════════════════
+//  CHALLENGES
+// ═══════════════════════════════════════════
+const CHALLENGES = [
+  { task:'List all files and folders in the current directory.',
+    answers:['dir'], hint:'Use the command that "lists" the contents of a folder.' },
+  { task:'Create a new folder named <code>Backup</code>.',
+    answers:['md backup','mkdir backup'], hint:'"md" stands for Make Directory, followed by the folder name.' },
+  { task:'Navigate into the <code>Documents</code> folder.',
+    answers:['cd documents'], hint:'"cd" means Change Directory. Type it followed by the folder name.' },
+  { task:'Go back to the previous directory (one level up).',
+    answers:['cd ..'], hint:'"cd" with two dots (..) moves up one directory level.' },
+  { task:'Navigate into <code>Desktop</code>, then display the contents of <code>notes.txt</code>.',
+    answers:['type notes.txt'], hint:'"type" followed by a filename displays its text contents.' },
+  { task:'Navigate back up, then display the folder structure as a visual tree.',
+    answers:['tree'], hint:'This command draws a visual branch-like structure of all folders.' },
+  { task:'Navigate back up if needed, then remove the <code>Backup</code> folder you created earlier.',
+    answers:['rd backup','rmdir backup'], hint:'"rd" stands for Remove Directory.' },
+  { task:"Display your computer's IP configuration.",
+    answers:['ipconfig'], hint:'Starts with "ip" and shows network address information.' },
+  { task:'Display all currently running tasks and processes.',
+    answers:['tasklist'], hint:'Think of what you are listing — tasks.' },
+  { task:'Test network connectivity by pinging <code>google.com</code>.',
+    answers:['ping google.com'], hint:'Use the "ping" command followed by the website address.' },
+  { task:'Check the disk for errors.',
+    answers:['chkdsk'], hint:'Short for "check disk" — two words combined into one.' },
+  { task:'Display the current system date.',
+    answers:['date'], hint:'Just type the word that represents what you want to see.' },
+  { task:'Display the current system time.',
+    answers:['time'], hint:'Same idea as the previous challenge, but for time.' },
+  { task:'Show all environment variables (system settings).',
+    answers:['set'], hint:'A short three-letter command used to display environment variables.' },
+  { task:'Display help information to see all available commands.',
+    answers:['help'], hint:'Type the word that means "I need assistance".' },
+];
+
+let chIdx=0, chFS=cloneFS(), chPath='C:\\Users\\Student', chLocked=false;
+const chOut=document.getElementById('ch-output');
+const chInp=document.getElementById('ch-input');
+const chPromptEl=document.getElementById('ch-prompt');
+const chTitleEl=document.getElementById('ch-title-text');
+const chLabelEl=document.getElementById('ch-label');
+const chProg=document.getElementById('ch-progress');
+const chTaskEl=document.getElementById('ch-task');
+const chFeedEl=document.getElementById('ch-feedback');
+const nextBtn=document.getElementById('next-btn');
+const hintTextEl=document.getElementById('hint-text');
+
+function chPrint(lines){
+  lines.forEach(l=>{const d=document.createElement('div');d.className=l.c||'';d.textContent=l.t;chOut.appendChild(d);});
+  chOut.scrollTop=chOut.scrollHeight;
+}
+
+function loadChallenge(idx){
+  const c=CHALLENGES[idx];
+  chLocked=false;
+  chInp.disabled=false;
+  chLabelEl.textContent=`Challenge ${idx+1} of ${CHALLENGES.length}`;
+  chProg.style.width=`${(idx/CHALLENGES.length)*100}%`;
+  chTaskEl.innerHTML=c.task;
+  hintTextEl.textContent='';hintTextEl.classList.remove('visible');
+  chFeedEl.textContent='';chFeedEl.className='feedback-strip';
+  nextBtn.classList.remove('visible');
+  chPromptEl.textContent=chPath+'>';
+  chTitleEl.textContent=chPath;
+  chOut.innerHTML='';
+  chPrint([
+    {t:`── Challenge ${idx+1} of ${CHALLENGES.length} ──────────────────────────────`,c:'t-dim'},
+    {t:'',c:''},
+  ]);
+  chInp.focus();
+}
+
+function showHint(){
+  if(chLocked)return;
+  hintTextEl.textContent=CHALLENGES[chIdx].hint;
+  hintTextEl.classList.add('visible');
+}
+
+function advanceChallenge(){
+  chIdx++;
+  if(chIdx>=CHALLENGES.length) showFinalResult();
+  else loadChallenge(chIdx);
+}
+
+function startChallenge(){
+  chIdx=0;chFS=cloneFS();chPath='C:\\Users\\Student';chLocked=false;
+  document.getElementById('ch-intro').classList.remove('visible');
+  document.getElementById('ch-result').classList.remove('visible');
+  document.getElementById('ch-active').style.display='flex';
+  startTimer();
+  loadChallenge(0);
+}
+
+function restartChallenge(){
+  stopTimer();
+  document.getElementById('ch-result').classList.remove('visible');
+  document.getElementById('ch-active').style.display='none';
+  document.getElementById('ch-intro').classList.add('visible');
+}
+
+function isCorrect(input){
+  const n=input.trim().toLowerCase().replace(/\s+/g,' ');
+  return CHALLENGES[chIdx].answers.some(a=>a.toLowerCase()===n);
+}
+
+function showFinalResult(){
+  stopTimer();
+  const total=elapsedSeconds;
+  document.getElementById('ch-active').style.display='none';
+  document.getElementById('ch-result').classList.add('visible');
+  document.getElementById('res-time').textContent=formatTime(total);
+
+  let remark, sub;
+  if(total<120){remark='🔥 Blazing fast! Excellent command knowledge!';sub='Under 2 minutes — outstanding performance!';}
+  else if(total<240){remark='⚡ Great speed! Well done!';sub='Under 4 minutes — impressive work!';}
+  else if(total<420){remark='👍 Good effort! Keep practicing!';sub='You got through all 15 challenges. Try to beat your time!';}
+  else{remark='💪 You made it! Practice makes perfect.';sub='Try again to improve your speed and confidence!';}
+
+  document.getElementById('res-remark').textContent=remark;
+  document.getElementById('res-sub').textContent=sub;
+  document.getElementById('ch-progress').style.width='100%';
+}
+
+chInp.addEventListener('keydown',e=>{
+  if(e.key!=='Enter'||chLocked)return;
+  const val=chInp.value;if(!val.trim())return;
+  chInp.value='';
+
+  const echo=document.createElement('div');
+  echo.className='t-white';
+  echo.textContent=chPath+'>'+val;
+  chOut.appendChild(echo);
+
+  if(isCorrect(val)){
+    const res=processCommand(val,chPath,chFS);
+    if(!res.clear)chPrint(res.lines);
+    chPath=res.newPath;
+    chPromptEl.textContent=chPath+'>';
+    chTitleEl.textContent=chPath;
+    chOut.scrollTop=chOut.scrollHeight;
+    chFeedEl.textContent='✓  Correct! Review the output, then press Next Challenge when ready.';
+    chFeedEl.className='feedback-strip correct';
+    nextBtn.classList.add('visible');
+    chLocked=true;
+    chInp.disabled=true;
+  } else {
+    chFeedEl.textContent=`✗  '${val.trim()}' is not the expected command. Try again.`;
+    chFeedEl.className='feedback-strip wrong';
+    const res=processCommand(val,chPath,chFS);
+    if(!res.clear)chPrint(res.lines);
+    chPath=res.newPath;
+    chPromptEl.textContent=chPath+'>';
+    chTitleEl.textContent=chPath;
+    chOut.scrollTop=chOut.scrollHeight;
+  }
+});
+
+// ═══════════════════════════════════════════
+//  TAB SWITCHING
+// ═══════════════════════════════════════════
+function switchTab(tab){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  (tab==='sim'?document.querySelector('.tab-btn:first-child'):document.querySelector('.tab-btn:nth-child(2)')).classList.add('active');
+  document.getElementById(`panel-${tab}`).classList.add('active');
+  if(tab==='sim')simInp.focus();
+  else if(tab==='challenge'&&document.getElementById('ch-active').style.display!=='none'&&!chLocked)chInp.focus();
+}
+
+simInp.focus();
+</script>
+</body>
+</html>

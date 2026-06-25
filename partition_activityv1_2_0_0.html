@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Partition Management Activity</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%; overflow: hidden;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #1a1a2e; color: #e0e0e0;
+  }
+  .app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+  /* ── Top bar ── */
+  .topbar {
+    background: #16213e; border-bottom: 2px solid #0f3460;
+    display: flex; align-items: center;
+    padding: 0 20px; height: 50px; flex-shrink: 0; gap: 14px;
+  }
+  .topbar-title { font-size: 14px; font-weight: 700; color: #e2b96f; }
+  .topbar-sub   { font-size: 12px; color: #4a6080; }
+
+  /* ── Stage ── */
+  .stage {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-start;
+    padding: 16px; overflow-y: auto; gap: 12px; min-height: 0;
+  }
+
+  /* ── Instruction banner ── */
+  .instruction {
+    width: 100%; max-width: 860px;
+    background: #16213e; border: 1px solid #0f3460;
+    border-radius: 8px; padding: 12px 16px;
+    display: flex; align-items: center; gap: 14px; flex-shrink: 0;
+  }
+  .step-pill {
+    background: #0f3460; color: #e2b96f;
+    font-size: 11px; font-weight: 700;
+    padding: 4px 10px; border-radius: 20px;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .instruction-text { font-size: 13px; color: #d4e4ff; line-height: 1.5; flex: 1; }
+  .instruction-text strong { color: #e2b96f; }
+  .back-btn {
+    padding: 5px 14px; background: transparent;
+    border: 1px solid #2a4060; border-radius: 5px;
+    color: #7a9ab8; font-size: 12px; font-weight: 600;
+    cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: all 0.2s;
+  }
+  .back-btn:hover { background: #0f2040; color: #aec6e8; border-color: #4a6080; }
+  .back-btn:disabled { opacity: 0.2; cursor: not-allowed; pointer-events: none; }
+
+  /* ══════════════════════════════
+     WIN+R DIALOG
+  ══════════════════════════════ */
+  .run-dialog {
+    background: #f0f0f0; border: 1px solid #999;
+    border-radius: 4px; width: 420px;
+    box-shadow: 3px 3px 12px rgba(0,0,0,0.5);
+    font-family: 'Segoe UI', Arial, sans-serif; color: #1a1a1a;
+    overflow: hidden;
+  }
+  .win-titlebar {
+    background: linear-gradient(180deg,#1a6fc4,#155da0);
+    padding: 6px 10px; display: flex; align-items: center; gap: 8px;
+  }
+  .win-title-text { color:#fff; font-size:12px; font-weight:600; flex:1; }
+  .win-ctrl-row { display:flex; gap:2px; }
+  .win-ctrl {
+    width:20px; height:16px; background:#4a90d9;
+    border:1px solid #2a6cb0; border-radius:2px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:10px; color:#fff; cursor:default;
+  }
+  .win-ctrl.close { background:#c0392b; border-color:#962d22; }
+  .run-body { padding: 16px 18px; display:flex; flex-direction:column; gap:12px; }
+  .run-icon-row { display:flex; align-items:center; gap:12px; }
+  .run-icon { font-size:32px; }
+  .run-desc { font-size:12px; color:#444; line-height:1.5; }
+  .run-field label { font-size:12px; color:#333; display:block; margin-bottom:4px; }
+  .run-input {
+    width:100%; padding:4px 8px;
+    border:1px solid #aaa; border-radius:2px;
+    font-size:13px; font-family:'Consolas',monospace;
+  }
+  .run-input.error { border-color:#c0392b; background:#fff5f5; }
+  .run-footer { padding:10px 18px; background:#f0f0f0; border-top:1px solid #d0d0d0; display:flex; justify-content:flex-end; gap:6px; }
+  .win-btn {
+    padding:5px 18px; border:1px solid #aaa; border-radius:3px;
+    background:linear-gradient(180deg,#f8f8f8,#e0e0e0);
+    color:#1a1a1a; font-size:13px; cursor:pointer;
+    font-family:'Segoe UI',Arial,sans-serif; transition:background 0.15s;
+  }
+  .win-btn:hover { background:linear-gradient(180deg,#e8f0ff,#c8d8f0); border-color:#4a90d9; }
+  .win-btn.primary {
+    background:linear-gradient(180deg,#4a90d9,#1a6fc4);
+    border-color:#1a5fa0; color:#fff;
+  }
+  .win-btn.primary:hover { background:linear-gradient(180deg,#5aa0e9,#2a7fd4); }
+  .win-btn:disabled { opacity:0.4; cursor:not-allowed; }
+
+  /* ══════════════════════════════
+     DISK MANAGEMENT WINDOW
+  ══════════════════════════════ */
+  .diskmgmt-window {
+    width:100%; max-width:860px;
+    background:#f0f0f0; border:1px solid #999;
+    box-shadow:3px 3px 12px rgba(0,0,0,0.4);
+    font-family:'Segoe UI',Arial,sans-serif; color:#1a1a1a;
+    overflow:hidden; border-radius:4px;
+  }
+
+  /* Menu bar */
+  .diskmgmt-menubar {
+    background:#f0f0f0; border-bottom:1px solid #d0d0d0;
+    padding:3px 8px; display:flex; gap:4px;
+  }
+  .menu-item {
+    padding:3px 10px; font-size:12px; cursor:default;
+    border-radius:2px; border:1px solid transparent;
+    transition:background 0.1s;
+  }
+  .menu-item:hover { background:#d0e4f8; border-color:#4a90d9; }
+
+  /* Toolbar */
+  .diskmgmt-toolbar {
+    background:#f8f8f8; border-bottom:1px solid #d0d0d0;
+    padding:3px 8px; display:flex; gap:6px; align-items:center;
+  }
+  .toolbar-btn {
+    padding:2px 8px; font-size:11px;
+    background:linear-gradient(180deg,#f8f8f8,#e8e8e8);
+    border:1px solid #bbb; border-radius:2px; cursor:default;
+    color:#333;
+  }
+
+  /* Volume list */
+  .volume-list {
+    border-bottom:1px solid #ccc;
+    overflow-y:auto; max-height:130px;
+  }
+  .volume-table {
+    width:100%; border-collapse:collapse; font-size:12px;
+  }
+  .volume-table th {
+    background:#e8e8e8; padding:4px 10px;
+    border-bottom:1px solid #ccc; border-right:1px solid #ddd;
+    text-align:left; font-weight:600; color:#333; white-space:nowrap;
+  }
+  .volume-table td {
+    padding:4px 10px; border-bottom:1px solid #eee;
+    border-right:1px solid #eee; white-space:nowrap;
+  }
+  .volume-table tr:hover td { background:#d4e8ff; }
+  .volume-table tr.selected td { background:#b8d8ff; }
+
+  /* Disk map section */
+  .disk-map-section { padding:10px; background:#f0f0f0; }
+  .disk-row {
+    display:flex; align-items:stretch;
+    border:1px solid #999; margin-bottom:8px;
+    min-height:64px; font-size:11px;
+  }
+  .disk-label {
+    width:90px; flex-shrink:0;
+    background:#e8e8e8; border-right:1px solid #999;
+    padding:6px 8px; display:flex; flex-direction:column;
+    justify-content:center; gap:2px; color:#333;
+  }
+  .disk-label-name { font-weight:700; font-size:12px; }
+  .disk-label-sub  { font-size:10px; color:#666; }
+  .disk-partitions { flex:1; display:flex; }
+
+  /* Partition block */
+  .part-block {
+    display:flex; flex-direction:column;
+    justify-content:center; align-items:center;
+    border-right:1px solid #999; padding:4px 6px;
+    cursor:default; position:relative; overflow:hidden;
+    text-align:center; font-size:11px;
+    transition:filter 0.15s;
+    min-width:30px;
+  }
+  .part-block:last-child { border-right:none; }
+  .part-block:hover { filter:brightness(0.93); }
+  .part-block.selected { outline:2px solid #0078d4; outline-offset:-2px; }
+  .part-block.system-res { background:#c8d8f0; }
+  .part-block.ntfs-c     { background:#b8d4ff; }
+  .part-block.unalloc    {
+    background: repeating-linear-gradient(
+      45deg, #d8d8d8, #d8d8d8 4px, #f0f0f0 4px, #f0f0f0 10px
+    );
+    cursor:pointer;
+  }
+  .part-block.new-part   { background:#c8f0c8; }
+  .part-name  { font-weight:700; font-size:12px; }
+  .part-fs    { font-size:10px; color:#555; }
+  .part-size  { font-size:10px; color:#333; }
+  .part-type  { font-size:9px; color:#777; }
+
+  /* Status bar */
+  .diskmgmt-statusbar {
+    background:#e8e8e8; border-top:1px solid #ccc;
+    padding:3px 10px; font-size:11px; color:#555;
+    display:flex; gap:20px;
+  }
+
+  /* ── Context menu ── */
+  .ctx-menu {
+    display:none; position:fixed;
+    background:#f8f8f8; border:1px solid #aaa;
+    box-shadow:2px 2px 8px rgba(0,0,0,0.25);
+    z-index:200; min-width:200px;
+    font-family:'Segoe UI',Arial,sans-serif;
+    font-size:13px; color:#1a1a1a;
+    border-radius:2px; overflow:hidden;
+    padding:3px 0;
+  }
+  .ctx-menu.visible { display:block; }
+  .ctx-item {
+    padding:6px 20px; cursor:pointer;
+    transition:background 0.1s;
+  }
+  .ctx-item:hover { background:#d4e8ff; }
+  .ctx-item.disabled { color:#aaa; cursor:default; }
+  .ctx-item.disabled:hover { background:transparent; }
+  .ctx-separator { border-bottom:1px solid #ddd; margin:3px 0; }
+
+  /* ── Wizard dialog ── */
+  .wizard-overlay {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,0.35);
+    align-items:center; justify-content:center; z-index:150;
+  }
+  .wizard-overlay.visible { display:flex; }
+  .wizard-dialog {
+    background:#f0f0f0; border:1px solid #999;
+    border-radius:4px; width:500px;
+    box-shadow:3px 3px 16px rgba(0,0,0,0.5);
+    font-family:'Segoe UI',Arial,sans-serif; color:#1a1a1a;
+    overflow:hidden;
+  }
+  .wizard-titlebar {
+    background:linear-gradient(180deg,#1a6fc4,#155da0);
+    padding:6px 10px; display:flex; align-items:center; gap:8px;
+  }
+  .wizard-title-text { color:#fff; font-size:12px; font-weight:600; flex:1; }
+  .wizard-body {
+    display:flex; min-height:260px;
+  }
+  .wizard-sidebar {
+    width:140px; flex-shrink:0;
+    background:linear-gradient(180deg,#1a3a6a,#0f2a50);
+    padding:20px 14px; display:flex; flex-direction:column; gap:16px;
+  }
+  .wizard-sidebar-title { color:#fff; font-size:13px; font-weight:700; line-height:1.4; }
+  .wizard-sidebar-sub { color:#a0b8d0; font-size:11px; line-height:1.5; }
+  .wizard-main { flex:1; padding:20px 22px; background:#fff; display:flex; flex-direction:column; gap:12px; }
+  .wizard-main-title { font-size:15px; font-weight:700; color:#1a1a1a; }
+  .wizard-main-sub { font-size:12px; color:#555; line-height:1.6; }
+  .wizard-field { display:flex; flex-direction:column; gap:4px; }
+  .wizard-field label { font-size:12px; color:#333; font-weight:600; }
+  .wizard-field input, .wizard-field select {
+    padding:4px 8px; border:1px solid #aaa; border-radius:2px;
+    font-size:13px; font-family:'Segoe UI',Arial,sans-serif;
+    width:100%;
+  }
+  .wizard-field-row { display:flex; align-items:center; gap:10px; }
+  .wizard-field-row label { font-size:12px; color:#333; white-space:nowrap; min-width:220px; }
+  .wizard-field-row input { width:80px; padding:4px 6px; border:1px solid #aaa; border-radius:2px; font-size:13px; text-align:right; }
+  .wizard-field-row span { font-size:12px; color:#555; }
+  .wizard-footer {
+    padding:10px 16px; background:#f0f0f0;
+    border-top:1px solid #d0d0d0;
+    display:flex; justify-content:flex-end; gap:8px;
+  }
+
+  /* Shrink dialog (non-wizard) */
+  .shrink-dialog {
+    background:#f0f0f0; border:1px solid #999;
+    border-radius:4px; width:460px;
+    box-shadow:3px 3px 16px rgba(0,0,0,0.5);
+    font-family:'Segoe UI',Arial,sans-serif; color:#1a1a1a;
+    overflow:hidden;
+  }
+  .shrink-body { padding:16px 20px; background:#fff; display:flex; flex-direction:column; gap:10px; }
+  .shrink-title { font-size:14px; font-weight:700; }
+  .shrink-table { width:100%; font-size:12px; border-collapse:collapse; }
+  .shrink-table td { padding:4px 6px; }
+  .shrink-table td:first-child { color:#555; width:62%; }
+  .shrink-table td:last-child { text-align:right; font-weight:600; }
+  .shrink-field { display:flex; align-items:center; gap:10px; }
+  .shrink-field label { font-size:12px; color:#333; flex:1; }
+  .shrink-field input { width:90px; padding:4px 6px; border:1px solid #aaa; border-radius:2px; font-size:13px; text-align:right; }
+  .shrink-field span { font-size:12px; color:#555; }
+
+  /* ── Done screen ── */
+  .done-screen {
+    display:flex; flex-direction:column;
+    align-items:center; text-align:center;
+    gap:12px; padding:24px 20px;
+    width:100%; max-width:860px;
+  }
+  .done-emoji  { font-size:52px; }
+  .done-title  { font-size:22px; font-weight:700; color:#e2b96f; }
+  .done-sub    { font-size:13px; color:#7a9ab8; max-width:460px; line-height:1.8; }
+  .done-recap  {
+    background:#16213e; border:1px solid #0f3460;
+    border-radius:8px; padding:14px 20px;
+    text-align:left; max-width:460px; width:100%;
+  }
+  .done-recap-title { font-size:11px; font-weight:700; color:#4a6080; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; }
+  .done-recap-item  { font-size:13px; color:#d4e4ff; padding:4px 0; display:flex; gap:8px; }
+  .done-recap-item span { color:#4dff91; }
+  .restart-btn {
+    padding:10px 28px; background:#0f3460; border:1px solid #e2b96f;
+    border-radius:6px; color:#e2b96f; font-size:14px; font-weight:700;
+    cursor:pointer; transition:background 0.2s; margin-top:4px;
+  }
+  .restart-btn:hover { background:#1a4a80; }
+
+  /* Tooltip */
+  #tip-bar {
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+    padding:9px 20px; border-radius:6px; font-size:13px; z-index:300;
+    max-width:520px; text-align:center; pointer-events:none;
+    box-shadow:0 2px 10px rgba(0,0,0,0.4);
+    opacity:0; transition:opacity 0.3s;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <span class="topbar-title">CSS Activity 7 — Storage Management (Partition)</span>
+    <span class="topbar-sub">Follow each step to create a new partition</span>
+    <span id="step-counter" style="margin-left:auto;font-size:12px;color:#4a6080;font-family:'Consolas',monospace;"></span>
+  </div>
+  <div class="stage" id="stage"></div>
+  <div id="tip-bar"></div>
+</div>
+
+<!-- Context Menu -->
+<div class="ctx-menu" id="ctx-menu">
+  <div class="ctx-item" id="ctx-open">Open</div>
+  <div class="ctx-item" id="ctx-explore">Explore</div>
+  <div class="ctx-separator"></div>
+  <div class="ctx-item" id="ctx-shrink">Shrink Volume...</div>
+  <div class="ctx-item" id="ctx-extend" class="disabled">Extend Volume...</div>
+  <div class="ctx-item" id="ctx-new">New Simple Volume...</div>
+  <div class="ctx-separator"></div>
+  <div class="ctx-item" id="ctx-format">Format...</div>
+  <div class="ctx-item" id="ctx-delete" class="disabled">Delete Volume...</div>
+  <div class="ctx-separator"></div>
+  <div class="ctx-item" id="ctx-props">Properties</div>
+  <div class="ctx-item" id="ctx-help">Help</div>
+</div>
+
+<!-- Wizard Overlay -->
+<div class="wizard-overlay" id="wizard-overlay">
+  <div class="wizard-dialog" id="wizard-dialog"></div>
+</div>
+
+<!-- Shrink Overlay -->
+<div class="wizard-overlay" id="shrink-overlay">
+  <div class="shrink-dialog" id="shrink-dialog"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════
+const state = {
+  // Partition sizes in GB
+  systemRes: 0.5,
+  cDrive:    113.25,
+  unalloc:   0,          // grows after shrink
+  newPart:   0,          // grows after new volume
+  newLetter: 'D',
+  newLabel:  'New Volume',
+  shrinkDone: false,
+  newVolDone: false,
+  currentStep: 0,
+};
+
+const TOTAL_GB = 119.24;
+
+// ═══════════════════════════════════════════
+//  STEPS
+// ═══════════════════════════════════════════
+const STEPS = [
+  {
+    pill: 'Step 1 of 6',
+    instruction: 'Open the <strong>Run</strong> dialog by pressing <strong>Win + R</strong>. Type <strong>diskmgmt.msc</strong> then click <strong>OK</strong> to open Disk Management.',
+    render: renderRunDialog,
+  },
+  {
+    pill: 'Step 2 of 6',
+    instruction: 'Disk Management is open. <strong>Right-click</strong> on the <strong>C: (NTFS)</strong> partition in the disk bar and select <strong>Shrink Volume...</strong>',
+    render: renderDiskMgmt,
+  },
+  {
+    pill: 'Step 3 of 6',
+    instruction: 'Enter the amount of space to shrink in MB. Type <strong>20480</strong> (20 GB) in the field, then click <strong>Shrink</strong>.',
+    render: renderDiskMgmt,
+  },
+  {
+    pill: 'Step 4 of 6',
+    instruction: 'Unallocated space now appears in the disk bar. <strong>Right-click</strong> on the <strong>Unallocated</strong> block and select <strong>New Simple Volume...</strong>',
+    render: renderDiskMgmt,
+  },
+  {
+    pill: 'Step 5 of 6',
+    instruction: 'Follow the <strong>New Simple Volume Wizard</strong> — set the size, assign a drive letter, and set the file system to <strong>NTFS</strong>.',
+    render: renderDiskMgmt,
+  },
+  {
+    pill: 'Step 6 of 6',
+    instruction: 'Click <strong>Finish</strong> to complete. Your new partition will appear in the disk map.',
+    render: renderDiskMgmt,
+  },
+];
+
+let currentStep = 0;
+let ctxTarget   = null; // 'c' or 'unalloc'
+
+function renderStep(idx) {
+  currentStep = idx;
+  state.currentStep = idx;
+  closeCtx();
+  const stage = document.getElementById('stage');
+  const s = STEPS[idx];
+  document.getElementById('step-counter').textContent = `${idx+1} / ${STEPS.length}`;
+  stage.innerHTML = `
+    <div class="instruction">
+      <span class="step-pill">${s.pill}</span>
+      <span class="instruction-text">${s.instruction}</span>
+      <button class="back-btn" onclick="prevStep()" ${idx===0?'disabled':''}>← Back</button>
+    </div>
+    <div id="step-content" style="width:100%;max-width:860px;"></div>
+  `;
+  s.render(document.getElementById('step-content'));
+}
+
+function nextStep() {
+  closeCtx();
+  if (currentStep < STEPS.length - 1) renderStep(currentStep + 1);
+  else showDone();
+}
+function prevStep() {
+  closeCtx();
+  if (currentStep > 0) renderStep(currentStep - 1);
+}
+
+// ═══════════════════════════════════════════
+//  STEP 1 — RUN DIALOG
+// ═══════════════════════════════════════════
+function renderRunDialog(el) {
+  el.innerHTML = `
+    <div style="display:flex;justify-content:center;padding:20px 0;">
+      <div class="run-dialog">
+        <div class="win-titlebar">
+          <span style="font-size:14px;">🏃</span>
+          <span class="win-title-text">Run</span>
+          <div class="win-ctrl-row">
+            <div class="win-ctrl close">✕</div>
+          </div>
+        </div>
+        <div class="run-body">
+          <div class="run-icon-row">
+            <span class="run-icon">🏃</span>
+            <span class="run-desc">Type the name of a program, folder, document, or Internet resource, and Windows will open it for you.</span>
+          </div>
+          <div class="run-field">
+            <label>Open:</label>
+            <input class="run-input" id="run-input" type="text" autocomplete="off" spellcheck="false" placeholder="">
+          </div>
+        </div>
+        <div class="run-footer">
+          <button class="win-btn primary" onclick="tryRunCommand()">OK</button>
+          <button class="win-btn" onclick="showTip('⚠ Click OK to open Disk Management.')">Cancel</button>
+          <button class="win-btn" onclick="showTip('⚠ Type diskmgmt.msc first.')">Browse...</button>
+        </div>
+      </div>
+    </div>
+  `;
+  setTimeout(() => document.getElementById('run-input').focus(), 100);
+  document.getElementById('run-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') tryRunCommand();
+  });
+}
+
+window.tryRunCommand = function() {
+  const val = document.getElementById('run-input').value.trim().toLowerCase();
+  if (val === 'diskmgmt.msc' || val === 'diskmgmt') {
+    showTip('✓ Opening Disk Management...');
+    setTimeout(() => nextStep(), 1200);
+  } else if (val === '') {
+    document.getElementById('run-input').classList.add('error');
+    showTip('⚠ Type diskmgmt.msc in the Open field first.');
+  } else {
+    document.getElementById('run-input').classList.add('error');
+    showTip(`⚠ "${val}" is not correct. Type diskmgmt.msc to open Disk Management.`);
+  }
+};
+
+// ═══════════════════════════════════════════
+//  DISK MANAGEMENT WINDOW (steps 2-8)
+// ═══════════════════════════════════════════
+function renderDiskMgmt(el) {
+  const partitions = buildPartitions();
+  const volumeRows = buildVolumeRows();
+
+  el.innerHTML = `
+    <div class="diskmgmt-window">
+      <div class="win-titlebar">
+        <span style="font-size:13px;">💾</span>
+        <span class="win-title-text">Disk Management</span>
+        <div class="win-ctrl-row">
+          <div class="win-ctrl">─</div>
+          <div class="win-ctrl">□</div>
+          <div class="win-ctrl close">✕</div>
+        </div>
+      </div>
+      <div class="diskmgmt-menubar">
+        <div class="menu-item">File</div>
+        <div class="menu-item">Action</div>
+        <div class="menu-item">View</div>
+        <div class="menu-item">Help</div>
+      </div>
+      <div class="diskmgmt-toolbar">
+        <div class="toolbar-btn">⟳ Refresh</div>
+        <div class="toolbar-btn">▶ Rescan Disks</div>
+      </div>
+
+      <!-- Volume list -->
+      <div class="volume-list">
+        <table class="volume-table">
+          <thead>
+            <tr>
+              <th>Volume</th><th>Layout</th><th>Type</th>
+              <th>File System</th><th>Status</th>
+              <th>Capacity</th><th>Free Space</th><th>% Free</th>
+            </tr>
+          </thead>
+          <tbody id="vol-tbody">
+            ${volumeRows}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Disk map -->
+      <div class="disk-map-section">
+        <div style="font-size:11px;color:#666;margin-bottom:6px;font-weight:600;">Disk 0 — ${TOTAL_GB} GB</div>
+        <div class="disk-row" id="disk-row">
+          <div class="disk-label">
+            <div class="disk-label-name">Disk 0</div>
+            <div class="disk-label-sub">Basic</div>
+            <div class="disk-label-sub">${TOTAL_GB} GB</div>
+            <div class="disk-label-sub">Online</div>
+          </div>
+          <div class="disk-partitions" id="disk-partitions">
+            ${partitions}
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:#555;">
+            <div style="width:14px;height:14px;background:#c8d8f0;border:1px solid #999;"></div> System
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:#555;">
+            <div style="width:14px;height:14px;background:#b8d4ff;border:1px solid #999;"></div> Primary
+          </div>
+          ${state.unalloc>0?`<div style="display:flex;align-items:center;gap:4px;font-size:11px;color:#555;">
+            <div style="width:14px;height:14px;background:repeating-linear-gradient(45deg,#d8d8d8,#d8d8d8 3px,#f0f0f0 3px,#f0f0f0 7px);border:1px solid #999;"></div> Unallocated
+          </div>`:''}
+          ${state.newPart>0?`<div style="display:flex;align-items:center;gap:4px;font-size:11px;color:#555;">
+            <div style="width:14px;height:14px;background:#c8f0c8;border:1px solid #999;"></div> New Volume
+          </div>`:''}
+        </div>
+      </div>
+
+      <div class="diskmgmt-statusbar">
+        <span>Disk 0: ${TOTAL_GB} GB  —  ${state.unalloc.toFixed(2)} GB Unallocated</span>
+        ${state.newPart>0?`<span>${state.newLetter}: ${state.newPart.toFixed(0)} GB  NTFS  Healthy</span>`:''}
+      </div>
+    </div>
+  `;
+
+  attachPartitionEvents();
+}
+
+function buildPartitions() {
+  const total = TOTAL_GB;
+  const uW    = state.unalloc > 0 ? (state.unalloc / total * 100).toFixed(1) : 0;
+  const nW    = state.newPart  > 0 ? (state.newPart  / total * 100).toFixed(1) : 0;
+  // System Reserved gets a fixed comfortable width; C: fills the rest
+  const cW    = state.unalloc > 0
+    ? ((state.cDrive / total * 100) - 0).toFixed(1)
+    : (state.cDrive / total * 100).toFixed(1);
+
+  let html = `
+    <div class="part-block system-res" style="min-width:90px;flex-shrink:0;" data-part="sys">
+      <div class="part-name" style="font-size:10px;">System</div>
+      <div class="part-fs">Reserved</div>
+      <div class="part-size">${(state.systemRes*1024).toFixed(0)} MB</div>
+    </div>
+    <div class="part-block ntfs-c" style="flex:1;" id="part-c" data-part="c">
+      <div class="part-name">(C:)</div>
+      <div class="part-fs">NTFS</div>
+      <div class="part-size">${state.cDrive.toFixed(2)} GB</div>
+      <div class="part-type">Primary</div>
+    </div>
+  `;
+
+  if (state.unalloc > 0 && state.newPart === 0) {
+    const uFlex = (state.unalloc / state.cDrive).toFixed(2);
+    html += `
+      <div class="part-block unalloc" style="flex:${uFlex};" id="part-unalloc" data-part="unalloc">
+        <div class="part-name" style="color:#555;font-size:10px;">Unallocated</div>
+        <div class="part-size" style="color:#555;">${state.unalloc.toFixed(2)} GB</div>
+      </div>
+    `;
+  }
+
+  if (state.newPart > 0) {
+    const nFlex = (state.newPart / state.cDrive).toFixed(2);
+    html += `
+      <div class="part-block new-part" style="flex:${nFlex};" data-part="new">
+        <div class="part-name">(${state.newLetter}:)</div>
+        <div class="part-fs">NTFS</div>
+        <div class="part-size">${state.newPart.toFixed(2)} GB</div>
+        <div class="part-type">${state.newLabel}</div>
+      </div>
+    `;
+  }
+
+  return html;
+}
+
+function buildVolumeRows() {
+  let rows = `
+    <tr>
+      <td>⬛ System Reserved</td><td>Simple</td><td>Basic</td>
+      <td>NTFS</td><td>Healthy (System)</td>
+      <td>549 MB</td><td>200 MB</td><td>36%</td>
+    </tr>
+    <tr>
+      <td>💽 (C:)</td><td>Simple</td><td>Basic</td>
+      <td>NTFS</td><td>Healthy (Boot, Page File)</td>
+      <td>${state.cDrive.toFixed(2)} GB</td><td>${(state.cDrive*0.45).toFixed(2)} GB</td><td>45%</td>
+    </tr>
+  `;
+  if (state.newPart > 0) {
+    rows += `
+      <tr>
+        <td>🟩 (${state.newLetter}:)</td><td>Simple</td><td>Basic</td>
+        <td>NTFS</td><td>Healthy (Logical Drive)</td>
+        <td>${state.newPart.toFixed(2)} GB</td><td>${state.newPart.toFixed(2)} GB</td><td>100%</td>
+      </tr>
+    `;
+  }
+  return rows;
+}
+
+function attachPartitionEvents() {
+  const partC = document.getElementById('part-c');
+  const partU = document.getElementById('part-unalloc');
+
+  if (partC) {
+    partC.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      ctxTarget = 'c';
+      showCtx(e.clientX, e.clientY, 'c');
+    });
+    partC.addEventListener('click', () => {
+      partC.classList.add('selected');
+    });
+  }
+
+  if (partU) {
+    partU.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      ctxTarget = 'unalloc';
+      showCtx(e.clientX, e.clientY, 'unalloc');
+    });
+    partU.addEventListener('click', () => {
+      if (currentStep === 4) {
+        showTip('⚠ Right-click on the Unallocated block to open its context menu.');
+      }
+    });
+  }
+
+  document.addEventListener('click', closeCtxOnClick, { once: false });
+}
+
+// ═══════════════════════════════════════════
+//  CONTEXT MENU
+// ═══════════════════════════════════════════
+function showCtx(x, y, target) {
+  const menu = document.getElementById('ctx-menu');
+
+  // Configure which items are active
+  const shrink = document.getElementById('ctx-shrink');
+  const newVol = document.getElementById('ctx-new');
+  const open   = document.getElementById('ctx-open');
+  const explore= document.getElementById('ctx-explore');
+  const format = document.getElementById('ctx-format');
+
+  if (target === 'c') {
+    shrink.classList.remove('disabled');
+    newVol.classList.add('disabled');
+    open.classList.remove('disabled');
+    explore.classList.remove('disabled');
+    format.classList.remove('disabled');
+
+    shrink.onclick = () => { closeCtx(); handleShrinkClick(); };
+    newVol.onclick = () => { closeCtx(); showTip('⚠ New Simple Volume is only available on Unallocated space.'); };
+    open.onclick   = () => { closeCtx(); showTip('⚠ First shrink the volume to create unallocated space.'); };
+    format.onclick = () => { closeCtx(); showTip('⚠ Format the C: drive? That would erase Windows! Right step is Shrink Volume.'); };
+  } else {
+    shrink.classList.add('disabled');
+    newVol.classList.remove('disabled');
+    open.classList.add('disabled');
+    explore.classList.add('disabled');
+    format.classList.add('disabled');
+
+    shrink.onclick = () => { closeCtx(); showTip('⚠ Unallocated space cannot be shrunk. Use New Simple Volume instead.'); };
+    newVol.onclick = () => { closeCtx(); handleNewVolClick(); };
+    open.onclick   = () => {};
+    format.onclick = () => {};
+  }
+
+  // Position
+  menu.style.left = Math.min(x, window.innerWidth  - 210) + 'px';
+  menu.style.top  = Math.min(y, window.innerHeight - 260) + 'px';
+  menu.classList.add('visible');
+}
+
+function closeCtx() {
+  document.getElementById('ctx-menu').classList.remove('visible');
+}
+function closeCtxOnClick(e) {
+  if (!document.getElementById('ctx-menu').contains(e.target)) closeCtx();
+}
+
+// ═══════════════════════════════════════════
+//  SHRINK FLOW
+// ═══════════════════════════════════════════
+function handleShrinkClick() {
+  if (currentStep === 1) {
+    // Right-click + Shrink Volume combined — go to shrink step and open dialog
+    renderStep(2);
+    setTimeout(() => openShrinkDialog(), 200);
+    return;
+  }
+  if (currentStep < 1) {
+    showTip('⚠ Follow the steps in order.');
+    return;
+  }
+  openShrinkDialog();
+}
+
+function openShrinkDialog() {
+  const overlay = document.getElementById('shrink-overlay');
+  const dialog  = document.getElementById('shrink-dialog');
+  const totalMB = Math.round(state.cDrive * 1024);
+  const availMB = Math.round(state.cDrive * 1024 * 0.55);
+
+  dialog.innerHTML = `
+    <div class="win-titlebar">
+      <span style="font-size:13px;">💾</span>
+      <span class="win-title-text">Shrink C:</span>
+      <div class="win-ctrl-row">
+        <div class="win-ctrl close" onclick="closeShrinkDialog()">✕</div>
+      </div>
+    </div>
+    <div class="shrink-body">
+      <div class="shrink-title">Shrink C:</div>
+      <div style="font-size:12px;color:#555;margin-bottom:6px;">
+        You can shrink this volume to the amount of free space available. You cannot shrink a volume beyond where unmovable files are located.
+      </div>
+      <table class="shrink-table">
+        <tr><td>Total size before shrink in MB:</td><td>${totalMB.toLocaleString()} MB</td></tr>
+        <tr><td>Size of available shrink space in MB:</td><td>${availMB.toLocaleString()} MB</td></tr>
+        <tr><td>Enter the amount of space to shrink in MB:</td>
+            <td><input type="number" id="shrink-amount" value="20480" min="1" max="${availMB}" style="width:90px;padding:3px 6px;border:1px solid #aaa;border-radius:2px;font-size:13px;text-align:right;"></td></tr>
+        <tr><td>Total size after shrink in MB:</td><td id="after-size">${(totalMB - 20480).toLocaleString()} MB</td></tr>
+      </table>
+      <div style="font-size:11px;color:#888;margin-top:6px;">
+        See "Shrink a basic volume" in Disk Management help for more information.
+      </div>
+    </div>
+    <div class="wizard-footer">
+      <button class="win-btn primary" onclick="doShrink()">Shrink</button>
+      <button class="win-btn" onclick="closeShrinkDialog()">Cancel</button>
+    </div>
+  `;
+
+  document.getElementById('shrink-amount').addEventListener('input', function() {
+    const v = parseInt(this.value) || 0;
+    const after = totalMB - v;
+    const el = document.getElementById('after-size');
+    if (el) el.textContent = after.toLocaleString() + ' MB';
+  });
+
+  overlay.classList.add('visible');
+}
+
+window.closeShrinkDialog = function() {
+  document.getElementById('shrink-overlay').classList.remove('visible');
+};
+
+window.doShrink = function() {
+  const val = parseInt(document.getElementById('shrink-amount').value) || 0;
+  const availMB = Math.round(state.cDrive * 1024 * 0.55);
+
+  if (val < 1024) {
+    showTip('⚠ Enter at least 1024 MB (1 GB) to shrink.');
+    return;
+  }
+  if (val > availMB) {
+    showTip(`⚠ Maximum available shrink space is ${availMB.toLocaleString()} MB.`);
+    return;
+  }
+
+  const gbShrunk = val / 1024;
+  state.cDrive  -= gbShrunk;
+  state.unalloc  = gbShrunk;
+  state.shrinkDone = true;
+
+  closeShrinkDialog();
+  showTip(`✓ Volume shrunk by ${val.toLocaleString()} MB. Unallocated space created!`);
+  renderStep(4);
+};
+
+// ═══════════════════════════════════════════
+//  NEW SIMPLE VOLUME WIZARD
+// ═══════════════════════════════════════════
+let wizardPage = 0;
+const wizardData = { sizeMB: 0, letter: 'D', label: 'New Volume', fs: 'NTFS' };
+
+function handleNewVolClick() {
+  if (currentStep === 3) {
+    // Right-click + New Simple Volume combined — go to wizard step and open
+    renderStep(4);
+    setTimeout(() => openWizard(), 200);
+    return;
+  }
+  if (currentStep < 3) {
+    showTip('⚠ Complete the shrink step first.');
+    return;
+  }
+  openWizard();
+}
+
+function openWizard() {
+  wizardPage = 0;
+  wizardData.sizeMB  = Math.round(state.unalloc * 1024);
+  wizardData.letter  = 'D';
+  wizardData.label   = 'New Volume';
+  wizardData.fs      = 'NTFS';
+  document.getElementById('wizard-overlay').classList.add('visible');
+  renderWizardPage();
+}
+
+function closeWizard() {
+  document.getElementById('wizard-overlay').classList.remove('visible');
+}
+
+function renderWizardPage() {
+  const dialog = document.getElementById('wizard-dialog');
+  const maxMB  = Math.round(state.unalloc * 1024);
+
+  const pages = [
+    // Page 0: Welcome
+    () => `
+      <div class="wizard-titlebar">
+        <span style="font-size:13px;">💾</span>
+        <span class="wizard-title-text">New Simple Volume Wizard</span>
+        <div class="win-ctrl-row"><div class="win-ctrl close" onclick="closeWizard()">✕</div></div>
+      </div>
+      <div class="wizard-body">
+        <div class="wizard-sidebar">
+          <div class="wizard-sidebar-title">Welcome to the New Simple Volume Wizard</div>
+          <div class="wizard-sidebar-sub">This wizard helps you create a simple volume on a disk.</div>
+          <div class="wizard-sidebar-sub">A simple volume can only be on a single disk.</div>
+        </div>
+        <div class="wizard-main">
+          <div class="wizard-main-title">Welcome to the New Simple Volume Wizard</div>
+          <div class="wizard-main-sub">
+            This wizard helps you create a simple volume on a disk.<br><br>
+            A simple volume is a portion of a physical disk that functions as though it were a physically separate disk.<br><br>
+            To continue, click Next.
+          </div>
+        </div>
+      </div>
+      <div class="wizard-footer">
+        <button class="win-btn" onclick="closeWizard()">Cancel</button>
+        <button class="win-btn" disabled>< Back</button>
+        <button class="win-btn primary" onclick="wizNext()">Next ></button>
+      </div>
+    `,
+    // Page 1: Size
+    () => `
+      <div class="wizard-titlebar">
+        <span style="font-size:13px;">💾</span>
+        <span class="wizard-title-text">New Simple Volume Wizard</span>
+        <div class="win-ctrl-row"><div class="win-ctrl close" onclick="closeWizard()">✕</div></div>
+      </div>
+      <div class="wizard-body">
+        <div class="wizard-sidebar">
+          <div class="wizard-sidebar-title">New Simple Volume Wizard</div>
+          <div class="wizard-sidebar-sub">Step 2 of 5</div>
+        </div>
+        <div class="wizard-main">
+          <div class="wizard-main-title">Specify Volume Size</div>
+          <div class="wizard-main-sub">Choose a volume size that is between the maximum and minimum sizes.</div>
+          <div class="wizard-field" style="margin-top:10px;">
+            <div class="wizard-field-row">
+              <label>Maximum disk space in MB:</label>
+              <input type="text" value="${maxMB.toLocaleString()}" readonly style="background:#f0f0f0;">
+              <span>MB</span>
+            </div>
+            <div class="wizard-field-row" style="margin-top:6px;">
+              <label>Minimum disk space in MB:</label>
+              <input type="text" value="8" readonly style="background:#f0f0f0;">
+              <span>MB</span>
+            </div>
+            <div class="wizard-field-row" style="margin-top:6px;">
+              <label>Simple volume size in MB:</label>
+              <input type="number" id="vol-size" value="${maxMB}" min="8" max="${maxMB}">
+              <span>MB</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="wizard-footer">
+        <button class="win-btn" onclick="closeWizard()">Cancel</button>
+        <button class="win-btn" onclick="wizBack()">< Back</button>
+        <button class="win-btn primary" onclick="wizNextSize()">Next ></button>
+      </div>
+    `,
+    // Page 2: Drive letter
+    () => `
+      <div class="wizard-titlebar">
+        <span style="font-size:13px;">💾</span>
+        <span class="wizard-title-text">New Simple Volume Wizard</span>
+        <div class="win-ctrl-row"><div class="win-ctrl close" onclick="closeWizard()">✕</div></div>
+      </div>
+      <div class="wizard-body">
+        <div class="wizard-sidebar">
+          <div class="wizard-sidebar-title">New Simple Volume Wizard</div>
+          <div class="wizard-sidebar-sub">Step 3 of 5</div>
+        </div>
+        <div class="wizard-main">
+          <div class="wizard-main-title">Assign Drive Letter or Path</div>
+          <div class="wizard-main-sub">For easier access, you can assign a drive letter or drive path to your partition.</div>
+          <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px;">
+            <label style="display:flex;align-items:center;gap:10px;font-size:13px;">
+              <input type="radio" name="dl" checked> Assign the following drive letter:
+              <select id="drive-letter" style="padding:3px 6px;border:1px solid #aaa;border-radius:2px;font-size:13px;">
+                <option>D</option><option>E</option><option>F</option><option>G</option>
+              </select>
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;font-size:13px;color:#aaa;">
+              <input type="radio" name="dl" disabled> Mount in the following empty NTFS folder:
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;font-size:13px;color:#aaa;">
+              <input type="radio" name="dl" disabled> Do not assign a drive letter or drive path
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="wizard-footer">
+        <button class="win-btn" onclick="closeWizard()">Cancel</button>
+        <button class="win-btn" onclick="wizBack()">< Back</button>
+        <button class="win-btn primary" onclick="wizNextLetter()">Next ></button>
+      </div>
+    `,
+    // Page 3: Format
+    () => `
+      <div class="wizard-titlebar">
+        <span style="font-size:13px;">💾</span>
+        <span class="wizard-title-text">New Simple Volume Wizard</span>
+        <div class="win-ctrl-row"><div class="win-ctrl close" onclick="closeWizard()">✕</div></div>
+      </div>
+      <div class="wizard-body">
+        <div class="wizard-sidebar">
+          <div class="wizard-sidebar-title">New Simple Volume Wizard</div>
+          <div class="wizard-sidebar-sub">Step 4 of 5</div>
+        </div>
+        <div class="wizard-main">
+          <div class="wizard-main-title">Format Partition</div>
+          <div class="wizard-main-sub">To store data on this partition, you must format it first. Choose whether to format and settings below.</div>
+          <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#aaa;">
+              <input type="radio" name="fmt" disabled> Do not format this volume
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;">
+              <input type="radio" name="fmt" checked> Format this volume with the following settings:
+            </label>
+            <div style="margin-left:24px;display:flex;flex-direction:column;gap:8px;margin-top:4px;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <label style="font-size:12px;min-width:130px;">File system:</label>
+                <select id="fmt-fs" style="padding:3px 6px;border:1px solid #aaa;border-radius:2px;font-size:13px;">
+                  <option>NTFS</option><option>FAT32</option><option>exFAT</option>
+                </select>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <label style="font-size:12px;min-width:130px;">Allocation unit size:</label>
+                <select style="padding:3px 6px;border:1px solid #aaa;border-radius:2px;font-size:13px;">
+                  <option>Default</option><option>4096</option><option>8192</option>
+                </select>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <label style="font-size:12px;min-width:130px;">Volume label:</label>
+                <input type="text" id="vol-label" value="New Volume"
+                  style="padding:3px 6px;border:1px solid #aaa;border-radius:2px;font-size:13px;width:140px;">
+              </div>
+              <label style="display:flex;align-items:center;gap:8px;font-size:12px;">
+                <input type="checkbox" checked> Perform a quick format
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="wizard-footer">
+        <button class="win-btn" onclick="closeWizard()">Cancel</button>
+        <button class="win-btn" onclick="wizBack()">< Back</button>
+        <button class="win-btn primary" onclick="wizNextFormat()">Next ></button>
+      </div>
+    `,
+    // Page 4: Finish
+    () => `
+      <div class="wizard-titlebar">
+        <span style="font-size:13px;">💾</span>
+        <span class="wizard-title-text">New Simple Volume Wizard</span>
+        <div class="win-ctrl-row"><div class="win-ctrl close" onclick="closeWizard()">✕</div></div>
+      </div>
+      <div class="wizard-body">
+        <div class="wizard-sidebar">
+          <div class="wizard-sidebar-title">Completing the New Simple Volume Wizard</div>
+        </div>
+        <div class="wizard-main">
+          <div class="wizard-main-title">Completing the New Simple Volume Wizard</div>
+          <div class="wizard-main-sub">You have successfully completed the New Simple Volume Wizard.<br><br>You selected the following settings:</div>
+          <div style="background:#f8f8f8;border:1px solid #ddd;padding:12px;border-radius:2px;margin-top:8px;font-size:12px;line-height:2;">
+            <div><strong>Volume type:</strong> Simple Volume</div>
+            <div><strong>Disk selected:</strong> Disk 0</div>
+            <div><strong>Volume size:</strong> ${wizardData.sizeMB.toLocaleString()} MB</div>
+            <div><strong>Drive letter:</strong> ${wizardData.letter}:</div>
+            <div><strong>File system:</strong> ${wizardData.fs}</div>
+            <div><strong>Volume label:</strong> ${wizardData.label}</div>
+            <div><strong>Quick format:</strong> Yes</div>
+          </div>
+          <div style="font-size:12px;color:#555;margin-top:8px;">To close this wizard, click Finish.</div>
+        </div>
+      </div>
+      <div class="wizard-footer">
+        <button class="win-btn" onclick="closeWizard()">Cancel</button>
+        <button class="win-btn" onclick="wizBack()">< Back</button>
+        <button class="win-btn primary" onclick="wizFinish()">Finish</button>
+      </div>
+    `,
+  ];
+
+  dialog.innerHTML = pages[wizardPage]();
+}
+
+window.wizNext = function() { wizardPage++; renderWizardPage(); };
+window.wizBack = function() { if (wizardPage > 0) { wizardPage--; renderWizardPage(); } };
+
+window.wizNextSize = function() {
+  const v = parseInt(document.getElementById('vol-size').value) || 0;
+  const maxMB = Math.round(state.unalloc * 1024);
+  if (v < 8) { showTip('⚠ Enter at least 8 MB.'); return; }
+  if (v > maxMB) { showTip(`⚠ Maximum is ${maxMB.toLocaleString()} MB.`); return; }
+  wizardData.sizeMB = v;
+  wizardPage++; renderWizardPage();
+};
+
+window.wizNextLetter = function() {
+  wizardData.letter = document.getElementById('drive-letter').value;
+  wizardPage++; renderWizardPage();
+};
+
+window.wizNextFormat = function() {
+  const fs    = document.getElementById('fmt-fs').value;
+  const label = document.getElementById('vol-label').value.trim() || 'New Volume';
+  if (fs !== 'NTFS') {
+    showTip('⚠ The module requires NTFS as the file system. Please select NTFS.');
+    return;
+  }
+  wizardData.fs    = fs;
+  wizardData.label = label;
+  renderStep(5);
+  setTimeout(() => { openWizard(); wizardPage = 4; renderWizardPage(); }, 200);
+};
+
+window.wizFinish = function() {
+  const gbNew = wizardData.sizeMB / 1024;
+  state.unalloc  = Math.max(0, state.unalloc - gbNew);
+  state.newPart  = gbNew;
+  state.newLetter= wizardData.letter;
+  state.newLabel = wizardData.label;
+  state.newVolDone = true;
+  closeWizard();
+  showTip(`✓ Partition (${wizardData.letter}:) created successfully! ${wizardData.sizeMB.toLocaleString()} MB  NTFS`);
+  setTimeout(() => showDone(), 1800);
+};
+
+// ═══════════════════════════════════════════
+//  DONE SCREEN
+// ═══════════════════════════════════════════
+function showDone() {
+  closeWizard();
+  closeShrinkDialog();
+  const stage = document.getElementById('stage');
+  document.getElementById('step-counter').textContent = `6 / 6`;
+  stage.innerHTML = `
+    <div class="done-screen">
+      <div class="done-emoji">🎉</div>
+      <div class="done-title">Partition Created Successfully!</div>
+      <div class="done-sub">You have successfully shrunk the C: drive and created a new NTFS partition using Windows Disk Management.</div>
+      <div class="done-recap">
+        <div class="done-recap-title">What you did</div>
+        <div class="done-recap-item"><span>✓</span> Opened Disk Management via Run → diskmgmt.msc</div>
+        <div class="done-recap-item"><span>✓</span> Right-clicked C: and selected Shrink Volume</div>
+        <div class="done-recap-item"><span>✓</span> Entered shrink amount and created unallocated space</div>
+        <div class="done-recap-item"><span>✓</span> Right-clicked unallocated space → New Simple Volume</div>
+        <div class="done-recap-item"><span>✓</span> Set volume size, drive letter (${state.newLetter}:), and label</div>
+        <div class="done-recap-item"><span>✓</span> Formatted partition as NTFS</div>
+        <div class="done-recap-item"><span>✓</span> New partition appeared in Disk Management</div>
+      </div>
+      <button class="restart-btn" onclick="restartActivity()">↺ Try Again</button>
+    </div>
+  `;
+}
+
+function restartActivity() {
+  state.cDrive     = 113.25;
+  state.unalloc    = 0;
+  state.newPart    = 0;
+  state.newLetter  = 'D';
+  state.newLabel   = 'New Volume';
+  state.shrinkDone = false;
+  state.newVolDone = false;
+  renderStep(0);
+}
+
+// ── Right-click on C: at step 2 special handler ──
+document.addEventListener('contextmenu', function(e) {
+  const part = e.target.closest('[data-part]');
+  if (!part) { e.preventDefault(); closeCtx(); }
+});
+
+// ── Tooltip ──
+let tipTimeout = null;
+function showTip(msg) {
+  const el = document.getElementById('tip-bar');
+  const warn = msg.startsWith('⚠');
+  el.style.background  = warn ? '#1a1400' : '#0a3020';
+  el.style.color       = warn ? '#ffd700' : '#4dff91';
+  el.style.border      = warn ? '1px solid #4a3a00' : '1px solid #1a6040';
+  el.textContent = msg;
+  el.style.opacity = '1';
+  clearTimeout(tipTimeout);
+  tipTimeout = setTimeout(() => { el.style.opacity = '0'; }, 3200);
+}
+window.showTip = showTip;
+
+// ── Close wizard overlay on outside click ──
+document.getElementById('wizard-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeWizard();
+});
+document.getElementById('shrink-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeShrinkDialog();
+});
+
+// Boot
+renderStep(0);
+</script>
+</body>
+</html>
